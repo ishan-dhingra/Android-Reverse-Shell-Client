@@ -2,6 +2,8 @@
 
 Android Reverse TCP Shell, opens a connection with server specified by you, which work as tunnel for your commands to client Android device.
 
+**Code in Progress - Please hold on for more fun!**
+
 **How to use?**
 
 Edit ReverseTcpRunnable.java:
