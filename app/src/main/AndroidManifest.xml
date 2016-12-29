@@ -18,12 +18,12 @@
             android:enabled="true"
             android:exported="true" />
 
-        <receiver android:name=".NetworkChangeReceiver">
+        <receiver android:name=".receivers.NetworkChangeReceiver">
             <intent-filter>
                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
             </intent-filter>
         </receiver>
-        <receiver android:name=".StartUpBootReceiver">
+        <receiver android:name=".receivers.StartUpBootReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
@@ -32,8 +32,8 @@
         <activity android:name=".MainActivity" android:theme="@style/Theme.AppCompat">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
         </activity>
     </application>

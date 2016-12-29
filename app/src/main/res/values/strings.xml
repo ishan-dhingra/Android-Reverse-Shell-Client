@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Evil App</string>
+    <string name="app_intro"><![CDATA[Hey there! this App is part of an open source project explaining concept of Reverse Shell. You can read the article <a href="http://www.anythingintellect.com/how-to-create-reverse-tcp-shell-on-android-device/">Android Reverse Shell</a> to learn usage of this App. You can explore this project on <a href="https://github.com/ishan-dhingra/Android-Reverse-Shell-Client">Github</a>.]]></string>
 </resources>
